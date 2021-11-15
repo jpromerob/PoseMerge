@@ -108,47 +108,25 @@ y_w ~ N[rf_21*mu_x_c + rf_22*mu_y_c + rf_23*mu_z_c + rf_24, (rf_21*sigma_x_c)^2 
 z_w ~ N[rf_31*mu_x_c + rf_32*mu_y_c + rf_33*mu_z_c + rf_34, (rf_31*sigma_x_c)^2 +(rf_32*sigma_y_c)^2 + (rf_33*sigma_z_c)^2]
 
 '''  
-def get_world_gaussian(mu_c, sigma_c, c2w):
+def get_world_gaussian(perspective, cam_pdf_params, c2w):
     
-    mu_w = np.zeros((3,5))
-    sigma_w = np.zeros((3,5))
-    
+    mu_c = np.zeros((3,4))
+    sigma_c = np.zeros((3,4))
+    mu_w = np.zeros((3,4))
+    sigma_w = np.zeros((3,4))
+        
+    # The gaussians are centered around the values given by the SNN (in camera space: 'perspective')
+    for j in range(3): # x, y, z
+        for i in range(3): # Cam 1, 2, 3
+            mu_c[j,i] = perspective[j,i] + cam_pdf_params[i,j,0]
+            sigma_c[j,i] = cam_pdf_params[i,j,1]    
+
+    # The gaussians are transformed to world space and their product is calculated (once per axis)
     for j in range(3): # x, y, z
         for i in range(3): # Cam 1, 2, 3
             mu_w[j, i] = c2w[j,0,i]*mu_c[0,i] + c2w[j,1,i]*mu_c[1,i] + c2w[j,2,i]*mu_c[2,i] + c2w[j,3,i]
             sigma_w[j, i] = math.sqrt((c2w[j,0,i]*sigma_c[0,i])**2 +(c2w[j,1,i]*sigma_c[1,i])**2 + (c2w[j,2,i]*sigma_c[2,i])**2)
-    
+        
         mu_w[j, 3], sigma_w[j, 3] = get_product(mu_w[j, 0:3], sigma_w[j, 0:3])
     
-    return mu_w, sigma_w
-
-'''
-This function recenters gaussians (from SNN stats) around SNN values
-SNN values are 'observations' of the ground truth done by the SNN through 3 cameras in camera space
-Each Camera introduces some error (in addition to the one intrinsic to the SNN)
-'''
-def recenter_gaussians(perspective, cam_pdf_params):
-    
-    mu_c = np.zeros((3,5))
-    sigma_c = np.zeros((3,5))
-    snn_values = np.zeros((3,3)) # Represents the output of the SNN: cams 1, 2, 3 --> (x, y, z)  
-    
-    # intrinsec camera error (applies for all cameras)
-    ice = np.array([0.001,0.001,0.001]) # x: 0.1% , y: 0.1%, z: 0.1%
-    
-    # Generating SNN values and recentering Gaussians (@ASK_JORG: is recentering needed?)
-    for j in range(3): # x, y, z
-
-        # Checking output of each camera
-        for i in range(3): # Cam 1, 2, 3
-
-            # Each camera behaves its own way: some error, vs ground truth, is expected in the 'snn_values' (<1%)
-            snn_values[i,j] = perspective[j,i] + np.random.uniform(low=0.0, high=ice[j], size=(1,))
-
-            # The Gaussians, from the SNN stats, are centered around the 'snn_values'
-            mu_c[j,i] = snn_values[i,j] + cam_pdf_params[i,j,0]
-            sigma_c[j,i] = cam_pdf_params[i,j,1]
-    
-    
-    
-    return mu_c, sigma_c
+    return mu_c, sigma_c, mu_w, sigma_w

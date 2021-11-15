@@ -6,13 +6,13 @@ import numpy as np
 '''
 This function defines ground truth (for a point in space)
 '''
-def define_object_pose(c2w, ground_truth):
+def define_object_pose(c2w, ground_truth, delta):
     
     perspective = np.zeros((4,3)) # coordinates|cameras
     # Checking output of each camera
     for i in range(3): # Cam 1, 2, 3
         w2c = np.linalg.inv(c2w[:,:,i])
-        perspective[:, i] = w2c.dot(ground_truth)
+        perspective[:, i] = w2c.dot(ground_truth) + np.random.uniform(low=-delta, high=delta, size=(4,))
 
     return perspective[0:3,:]
 
