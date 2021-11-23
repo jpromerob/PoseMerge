@@ -62,19 +62,18 @@ def get_transmats(cam_poses):
 
 
 '''
-The product of 3 gaussian PDFs is a gaussian PDF
-This function estimates the mu and sigma of such gaussian
+The conflation of a finite number of probability distributions is a consolidation of those distributions into a single probability distribution. If the base distributions are Gaussians, the conflated outcome will be a Gaussian as well. This function estimates the mu and sigma of such gaussian
 
 Inputs: 
  - mu: array of means (from N 'observations' using three instruments: cam 1, 2, 3)
  - sigma: array of stds (from N 'observations' using three instruments: cam 1, 2, 3)
  
  Outputs:
- - mu_prod: mean of product of gaussians
- - sigma_prod: std of product of gaussians
+ - mu_conflation: mean of conflation of gaussians
+ - sigma_conflation: std of conflation of gaussians
  
 '''
-def get_product(mu, sigma):
+def conflate(mu, sigma):
     
     mu_1 = mu[0]
     mu_2 = mu[1]
@@ -85,11 +84,11 @@ def get_product(mu, sigma):
     ss_3 = sigma[2]**2
     
     
-    mu_prod = (ss_1*ss_2*mu_3 + ss_2*ss_3*mu_1 + ss_3*ss_1*mu_2)/(ss_3*ss_2 + ss_2*ss_1 + ss_1*ss_3)
-    sigma_prod = math.sqrt((ss_1 * ss_2 * ss_3)/(ss_1*ss_2 + ss_2*ss_3 + ss_3*ss_1))
+    mu_conflation = (ss_1*ss_2*mu_3 + ss_2*ss_3*mu_1 + ss_3*ss_1*mu_2)/(ss_3*ss_2 + ss_2*ss_1 + ss_1*ss_3)
+    sigma_conflation = math.sqrt((ss_1 * ss_2 * ss_3)/(ss_1*ss_2 + ss_2*ss_3 + ss_3*ss_1))
     
     
-    return mu_prod, sigma_prod
+    return mu_conflation, sigma_conflation
 
 
 '''
@@ -127,6 +126,6 @@ def get_world_gaussian(perspective, cam_pdf_params, c2w):
             mu_w[j, i] = c2w[j,0,i]*mu_c[0,i] + c2w[j,1,i]*mu_c[1,i] + c2w[j,2,i]*mu_c[2,i] + c2w[j,3,i]
             sigma_w[j, i] = math.sqrt((c2w[j,0,i]*sigma_c[0,i])**2 +(c2w[j,1,i]*sigma_c[1,i])**2 + (c2w[j,2,i]*sigma_c[2,i])**2)
         
-        mu_w[j, 3], sigma_w[j, 3] = get_product(mu_w[j, 0:3], sigma_w[j, 0:3])
+        mu_w[j, 3], sigma_w[j, 3] = conflate(mu_w[j, 0:3], sigma_w[j, 0:3])
     
     return mu_c, sigma_c, mu_w, sigma_w
