@@ -29,15 +29,17 @@ def plot_gaussians(xyz, pdf, text, scenario):
 
     # Text:
 
-    ax_t.text(0.050,0.075,text, family='monospace')
+    ax_t.text(0.050,0.005,text, family='monospace')
+    
+    labels = ['Cam 1', 'Cam 2', 'Cam3', 'Prod']
+    colors = ['#5b9ad5', '#6fad47', '#febf00', '#000000']
+    styles = ['--', '-.', ':' , '-']
 
-    labels = ['Cam 1', 'Cam 2', 'Cam3', 'Prod', 'Mixt.']
-    styles = ['-', '-', '-', '--']
     
     for k in range(3+1): # 1,2,3, product
-        ax_x.plot(xyz[0,:], pdf[k,0,:], label=labels[k], linestyle = styles[k])
-        ax_y.plot(xyz[1,:], pdf[k,1,:], label=labels[k], linestyle = styles[k])
-        ax_z.plot(xyz[2,:], pdf[k,2,:], label=labels[k], linestyle = styles[k])
+        ax_x.plot(xyz[0,:], pdf[k,0,:], color=colors[k], label=labels[k], linestyle = styles[k])
+        ax_y.plot(xyz[1,:], pdf[k,1,:], color=colors[k], label=labels[k], linestyle = styles[k])
+        ax_z.plot(xyz[2,:], pdf[k,2,:], color=colors[k], label=labels[k], linestyle = styles[k])
 
 
     max_pdf = pdf.max()
@@ -70,9 +72,9 @@ def plot_gaussians(xyz, pdf, text, scenario):
     ax_y.set_ylim([0, max_pdf])
     ax_z.set_ylim([0, max_pdf])
 
-    ax_x.set_xlabel('x')
-    ax_y.set_xlabel('y')
-    ax_z.set_xlabel('y')
+    ax_x.set_xlabel('$x_w$')
+    ax_y.set_xlabel('$y_w$')
+    ax_z.set_xlabel('$z_w$')
 
     ax_x.set_xticks(np.arange(min_x, max_x, 0.1))
     ax_y.set_xticks(np.arange(min_y, max_y, 0.1))

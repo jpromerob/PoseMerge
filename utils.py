@@ -22,9 +22,17 @@ def data2text(ground_truth, cam_poses, mu_c, sigma_c, mu_w, sigma_w):
         text = text + "\n          mu_x = %3.3f | mu_y = %3.3f | mu_z = %3.3f" %(mu_w[0,i], mu_w[1,i], mu_w[2,i])
         text = text + "\n          sigma_x = %3.3f | sigma_y = %3.3f | sigma_z = %3.3f" %(sigma_w[0,i], sigma_w[1,i], sigma_w[2,i])
     
+    
+    text = text + "\n\n Consolidation:\n"
+    text = text + "\n    Pose:"
+    text = text + "\n       x_w = %3.3f | y_w = %3.3f | z_w = %3.3f" %(mu_w[0,3], mu_w[1,3], mu_w[2,3])
+    
     text = text + "\n\n\n"
     
-    print("The object is likely to be located at (%3.3f, %3.3f, %3.3f)" %(mu_w[0,3], mu_w[1,3], mu_w[2,3]))
+    e_x_per = 1000*abs(ground_truth[0]-mu_w[0,3])
+    e_y_per = 1000*abs(ground_truth[1]-mu_w[1,3])
+    e_z_per = 1000*abs(ground_truth[2]-mu_w[2,3])
+    print("The estimated object location has the following error in [mm]: (%3.3f, %3.3f, %3.3f)" %(e_x_per, e_y_per, e_z_per))
     
     return text
 
