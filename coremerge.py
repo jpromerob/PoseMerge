@@ -55,7 +55,7 @@ def get_transmats(cam_poses):
                              [0,0,0,1]])
 
         # General transformation matrix 'camera to world' (c2w)
-        c2w[:,:,i] = mat_tran.dot(mat_rotx).dot(mat_roty).dot(mat_rotz)
+        c2w[:,:,i] = mat_tran.dot(mat_rotz).dot(mat_roty).dot(mat_rotx)
     
     
     return c2w
