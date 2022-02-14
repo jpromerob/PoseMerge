@@ -2,8 +2,6 @@
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import matplotlib.pyplot as plt
-# from matplotlib import cm
-from scipy.stats import multivariate_normal
 from scipy import stats
 import time
 import math
@@ -177,7 +175,7 @@ def get_joint_rv(x, y, z, rv):
     
         
     return p
-    
+ 
 
 def visualize_cigar(nb_pts, rv, mean, threshold, cmapper):
         
@@ -268,7 +266,7 @@ def new_visualize_cigar(nb_pts, rv, mean, threshold):
 
 
     
-def visualize_all_cigars(nb_pts, rv_1, rv_2, rv_3, mean, threshold):
+def visualize_all_cigars(nb_pts, rv, mean, threshold):
     
     # Creating figure
     fig = plt.figure(figsize=(8,8))
@@ -279,12 +277,6 @@ def visualize_all_cigars(nb_pts, rv_1, rv_2, rv_3, mean, threshold):
     p = np.zeros((nb_pts,nb_pts, nb_pts))
     for k in range(3):
         
-        if k == 0:
-            rv = rv_1 
-        if k == 1:
-            rv = rv_2 
-        if k == 2:
-            rv = rv_3
         
         start = time.time()
         
@@ -292,13 +284,13 @@ def visualize_all_cigars(nb_pts, rv_1, rv_2, rv_3, mean, threshold):
         y_center = mean[1,k]
         z_center = mean[2,k]
         
-        x = np.linspace(stats.norm.ppf(0.05), stats.norm.ppf(0.95), nb_pts) + x_center
-        y = np.linspace(stats.norm.ppf(0.05), stats.norm.ppf(0.95), nb_pts) + y_center
-        z = np.linspace(stats.norm.ppf(0.05), stats.norm.ppf(0.95), nb_pts) + z_center
+        x = np.linspace(stats.norm.ppf(0.01), stats.norm.ppf(0.99), nb_pts) + x_center
+        y = np.linspace(stats.norm.ppf(0.01), stats.norm.ppf(0.99), nb_pts) + y_center
+        z = np.linspace(stats.norm.ppf(0.01), stats.norm.ppf(0.99), nb_pts) + z_center
         for idx_x in range (nb_pts): # x, y, z
             for idx_y in range (nb_pts): # x, y, z
                 for idx_z in range (nb_pts): # x, y, z   
-                    p[idx_x, idx_y, idx_z] = get_joint_rv(x[idx_x], y[idx_y], z[idx_z], rv)
+                    p[idx_x, idx_y, idx_z] = get_joint_rv(x[idx_x], y[idx_y], z[idx_z], rv[k])
 
         stop = time.time()
         elapsed = stop - start
