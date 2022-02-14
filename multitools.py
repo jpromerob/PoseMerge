@@ -1,10 +1,16 @@
-
+﻿
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import stats
+from scipy.stats import multivariate_normal
 import time
 import math
+from scipy import stats
+import time
+import math
+import matplotlib.pyplot as plt
+import datetime
 
 # from visuals import visualize_cigar
 # from utils import gen_rnd_cov
@@ -176,148 +182,293 @@ def get_joint_rv(x, y, z, rv):
         
     return p
  
-
-def visualize_cigar(nb_pts, rv, mean, threshold, cmapper):
+def get_3_joint_rv(x, y, z, rv):
+    
+    p1 = rv[0].pdf([x, y, z])
+    p2 = rv[1].pdf([x, y, z])
+    p3 = rv[2].pdf([x, y, z])
+    
+    p = np.cbrt(p1*p2*p3)
+    
+#     p = p1*p2*p3
         
-    x = np.linspace(stats.norm.ppf(0.02), stats.norm.ppf(0.98), nb_pts) + mean[0]
-    y = np.linspace(stats.norm.ppf(0.02), stats.norm.ppf(0.98), nb_pts) + mean[1]
-    z = np.linspace(stats.norm.ppf(0.02), stats.norm.ppf(0.98), nb_pts) + mean[2]
+    return p
 
-    # Getting joint probabilities
-    start = time.time()
-    p = np.zeros((nb_pts,nb_pts, nb_pts))
-    for idx_x in range (nb_pts): # x, y, z
-        for idx_y in range (nb_pts): # x, y, z
-            for idx_z in range (nb_pts): # x, y, z   
-                p[idx_x, idx_y, idx_z] = get_joint_rv(x[idx_x], y[idx_y], z[idx_z], rv)
-
-    stop = time.time()
-    elapsed = stop - start
-    print("Joint probabilities obtained after: " + str(int(elapsed)) + " seconds.")
-
+    
+def visualize_intersection(xx, yy, zz, p, idx, w_pose):
+        
+    
     # Creating figure
     fig = plt.figure(figsize=(8,8))
     ax = plt.axes(projection="3d")
-
-    idx = p > threshold
+    
 
     # Creating plot
-    xx, yy, zz = np.meshgrid(x, y, z)
-    ax.scatter3D(xx[idx], yy[idx], zz[idx], c=p[idx], cmap=cmapper, vmin=0, vmax=10, marker='.')
+    ax.scatter3D(xx[idx],yy[idx], zz[idx], c=p[idx], cmap='viridis', vmin=0, vmax=10, marker='.')
+    ax.scatter3D(w_pose[0], w_pose[1], w_pose[2], cmap='Reds', vmin=0, vmax=10, marker='p')
 
-    ax.set_xlabel('y')
-    ax.set_ylabel('-x')
-    ax.set_zlabel('z')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')    
     
+    ax.set_xlim([-1.5, 1.5])
+    ax.set_ylim([-1.5, 1.5])
+    ax.set_zlim([-1.5, 1.5])
     
-    max_x = mean[0]+2
-    max_y = mean[1]+2
-    max_z = mean[2]+2
-    min_x = mean[0]-2
-    min_y = mean[1]-2
-    min_z = mean[2]-2
-    
-    ax.set_xlim([min_x, max_x])
-    ax.set_ylim([min_y, max_y])
-    ax.set_zlim([min_z, max_z])
-    
-    ax.view_init(0,180) # Top View
+#     ax.view_init(0,180) # Top View
     
     plt.show()  
+
     
-def new_visualize_cigar(nb_pts, rv, mean, threshold):
+
+def get_euclidian_d(w_pose, prediction):
+    dx = abs(w_pose[0]-prediction[0])
+    dy = abs(w_pose[1]-prediction[1])
+    dz = abs(w_pose[2]-prediction[2])
+    
+    print("dx = {:.3f} | dy = {:.3f} | dz = {:.3f} in cm".format(100*dx, 100*dy, 100*dz))
+    
+    d = math.sqrt(dx*dx+dy*dy+dz*dz)
+    return d
+    
+''' This function prepares the ground for coordinate transformation'''
+def prepare_ground(w_pose):
         
-    x = np.linspace(stats.norm.ppf(0.02), stats.norm.ppf(0.98), nb_pts) + mean[0]
-    y = np.linspace(stats.norm.ppf(0.02), stats.norm.ppf(0.98), nb_pts) + mean[1]
-    z = np.linspace(stats.norm.ppf(0.02), stats.norm.ppf(0.98), nb_pts) + mean[2]
+    # Get camera poses
+    r_cam_poses = set_cam_poses()
     
-#     X, Y, Z = np.mgrid[-2:2:40j, -2:2:40j, -2:2:40j]
+    # Get Rotation Matrices: real-cam to world 
+    r2w = get_rotmats(r_cam_poses)
+    
+    # Get Translation Matrices: real-cam to world
+    r_trl = get_transmats(r_cam_poses)
+        
+    # Get poses and angles of connecting ray vs Z axis in real-cam space
+    r_obj_poses = np.zeros((3,3))       
+    r_obj_angles = np.zeros((2,3))    
+    for k in range(3):
+        r_obj_poses[:,k] = get_b_pose_from_a_pose(r2w[:,:,k], r_trl[:,:,k], w_pose)
+        r_obj_angles[0:2, k] = get_angles(r_obj_poses[:,k])
+            
+    # Estimate virtual camera poses (in real camera space)
+    v_poses = set_vir_poses(r_obj_angles)
+        
+    # Get Rotation Matrices: virtual-cam to real-cam 
+    v2r = get_rotmats(v_poses)
+        
+    # Get poses in virtual-cam space
+    v_obj_poses = np.zeros((3,3))  
+    v_obj_angles = np.zeros((2,3))    
+    for k in range(3):
+        v_obj_poses[:,k] = get_b_pose_from_a_pose(v2r[:,:,k], np.identity(4), r_obj_poses[:,k])
+        v_obj_angles[0:2, k] = get_angles(v_obj_poses[:,k])
+        # @TODO: The angles here should be exactly ZERO !!! WTF?!?!?
+#         print(np.round(v_poses[:,k],3))        
+#         print(v_angles[0:2, k])
+    print("vir_z_123 = ({:.3f}, {:.3f}, {:.3f})".format(np.round(v_obj_poses[2,0],3), np.round(v_obj_poses[2,1],3), np.round(v_obj_poses[2,2],3)))
+    
+    return r_trl, r2w, v2r, r_obj_poses, v_obj_poses, r_cam_poses
 
-    # Getting joint probabilities
-    start = time.time()
-    p = np.zeros((nb_pts,nb_pts, nb_pts))
-    for idx_x in range (nb_pts): # x, y, z
-        for idx_y in range (nb_pts): # x, y, z
-            for idx_z in range (nb_pts): # x, y, z   
-                p[idx_x, idx_y, idx_z] = get_joint_rv(x[idx_x], y[idx_y], z[idx_z], rv)
+''' Create Multivariate Gaussian Distributions'''
+def create_mgd(μ, Σ, r_trl, r2w, v2r, v_obj_poses):   
+   
+    r_μ = np.zeros((3,3))
+    r_Σ = np.zeros((3,3,3))
+    w_μ = np.zeros((3,3))
+    w_Σ = np.zeros((3,3,3))
+    new_μ = np.zeros((4,3)) # including a '1' at the end
+    for k in range(3):
+        
+        # @TODO: only for testing purposes
+#         μ[2] = v_obj_poses[2,k]
+                                      
+        # Rotating Means from virtual-cam space to real-cam space  
+        r_μ[:,k] = v2r[:,:,k] @ μ
+                 
+        # Rotating Means from real-cam space to world space 
+        w_μ[:,k] = r2w[:,:,k] @ r_μ[:,k]
+    
+        # Translating Means from Camera (Real=Virtual) space to World space 
+        new_μ[:,k] = r_trl[:,:, k] @ [w_μ[0,k], w_μ[1,k], w_μ[2,k],1]                     
+                 
+        # Rotating Covariance Matrix from virtual-cam space to real-cam space  
+        r_Σ[:,:,k] = v2r[:,:,k] @ Σ @ v2r[:,:,k].T  
+                 
+        # Rotating Covariance Matrix from real-cam space to world space  
+        w_Σ[:,:,k] = r2w[:,:,k] @ r_Σ[:,:,k] @ r2w[:,:,k].T 
+    
+    rv_1 = multivariate_normal(new_μ[0:3,0], w_Σ[:,:,0])
+    rv_2 = multivariate_normal(new_μ[0:3,1], w_Σ[:,:,1])
+    rv_3 = multivariate_normal(new_μ[0:3,2], w_Σ[:,:,2])
+    
+    return new_μ, [rv_1, rv_2, rv_3]
 
-    stop = time.time()
-    elapsed = stop - start
-    print("Joint probabilities obtained after: " + str(int(elapsed)) + " seconds.")
+''' This functions creates linspaces for (x, y, z) used as w_pose '''
+def get_w_bases(nb_samples):
+    
+    w_x = np.linspace(-0.5, 0, num=nb_samples) 
+    w_y = np.linspace(0.0, 1, num=nb_samples)
+    w_z = np.linspace(0.7, 1.2, num=nb_samples)
+    
+    return w_x, w_y, w_z
 
     
+def predict_pose(nb_pts, rv, mean, w_pose):
     
-#     values = np.sin(X*Y*Z) / (X*Y*Z)
+        
+    diff = 1.0
+#     lims = np.array([[-1, 3],[-1, 3],[-1,3]])
+#     lims = np.array([[-1.5, 1.5],[-1.5, 1.5],[-1.5, 1.5]])
+    lims = np.array([[mean[0]-diff, mean[0]+diff],[mean[1]-diff, mean[1]+diff],[mean[2]-diff, mean[2]+diff]])
+    nzc_max = 100 
+    th_increase = 0.001
+    count = 0
+    while True:
+        x = np.linspace(lims[0,0], lims[0,1], num=nb_pts) 
+        y = np.linspace(lims[1,0], lims[1,1], num=nb_pts)
+        z = np.linspace(lims[2,0], lims[2,1], num=nb_pts)
 
-    xx, yy, zz = np.meshgrid(x, y, z)
+        xx, yy, zz = np.meshgrid(x, y, z, indexing='ij')
     
-    idx = p > threshold
-    fig = go.Figure(data=go.Volume(
-        x=xx.flatten(),
-        y=yy.flatten(),
-        z=zz.flatten(),
-        value=p.flatten(),
-        isomin=0.1,
-        isomax=0.8,
-        opacity=0.1, # needs to be small to see through all surfaces
-        surface_count=17, # needs to be a large number for good volume rendering
-        ))
-    fig.show()
+        xyz = np.zeros((nb_pts,nb_pts, nb_pts,3))
+        xyz[:,:,:,0] = xx
+        xyz[:,:,:,1] = yy
+        xyz[:,:,:,2] = zz
+
+        # Getting joint probabilities
+        start = datetime.datetime.now()
+
+        p1 = rv[0].pdf(xyz)
+        p2 = rv[1].pdf(xyz)
+        p3 = rv[2].pdf(xyz)
+
+    #     p = np.cbrt(np.multiply(p1,np.multiply(p2,p3)))
+        p = np.cbrt(p1*p2*p3)
 
 
+        stop = datetime.datetime.now()
+        elapsed = stop - start
+
+        threshold = 0
+        while True:
+            idx = p > threshold
+            nzc = np.count_nonzero(idx)
+            threshold += th_increase
+#             print("th={:.3f} --> ## ={:.3f}".format(threshold, nzc))
+            if nzc < nzc_max:
+                break
+
+        # Indices of Max Probability
+        imp = np.unravel_index(np.argmax(p, axis=None), p.shape) 
+        prediction = [x[imp[0]], y[imp[1]], z[imp[2]]]
+
+        
+        count+= 1     
+        nzc_max = 20*nzc_max
+        th_increase = 10*th_increase
+        lims = np.array([[x[imp[0]]-0.25, x[imp[0]]+0.1],[y[imp[1]]-0.25, y[imp[1]]+0.1],[z[imp[2]]-0.25, z[imp[2]]+0.1]])
+        if count > 1:
+            print("Joint probabilities obtained after: " + str(int(elapsed.microseconds/1000)) + " [ms].")
+            print("Final Threshold : {:.3f}".format(threshold))
+            print("Prediction: ({:.3f}, {:.3f}, {:.3f})".format(x[imp[0]], y[imp[1]], z[imp[2]]))
+            d = get_euclidian_d(w_pose, prediction)
+            print("\033[1m" + "Error: {:.3f} [cm]\n\n".format(100*d)+ "\033[0m")
+            break
     
-def visualize_all_cigars(nb_pts, rv, mean, threshold):
+    return xx, yy, zz, p, idx, d
+  
+def visualize_all_cigars(nb_pts, rv, mean, plane, r_cam_poses):
+    
+    nzc_max =  1000
+    th_increase = 0.001
     
     # Creating figure
     fig = plt.figure(figsize=(8,8))
     ax = plt.axes(projection="3d")
     cmappers = ['Greens', 'Blues', 'Reds']
+   
+    # 'Plot' workspace
+    xs = np.linspace(-0.7, 0, nb_pts)
+    ys = np.linspace(-0.1, 1, nb_pts)
+    zs = np.linspace(0, 1.6, nb_pts)
 
-    # Getting joint probabilities
-    p = np.zeros((nb_pts,nb_pts, nb_pts))
+    X, Y = np.meshgrid(xs, ys, indexing='ij')
+    Z = np.ones((nb_pts,nb_pts))*1.5
+    ax.plot_surface(X, Y, Z, alpha=0.2, color='k')
+
+    Y, Z = np.meshgrid(ys, zs, indexing='ij')
+    X = np.ones((nb_pts,nb_pts))*-0.6
+    ax.plot_surface(X, Y, Z, alpha=0.2, color='k')
+
+    X, Z = np.meshgrid(xs, zs, indexing='ij')
+    Y = np.ones((nb_pts,nb_pts))*0
+    ax.plot_surface(X, Y, Z, alpha=0.2, color='k')
+    
+    # Plot Gaussians
+    p = np.zeros((nb_pts, nb_pts, nb_pts))
     for k in range(3):
+#         lims = np.array([[-1, 3],[-1, 3],[-1,3]])
+        diff = 1.0
+        lims = np.array([[mean[0,k]-diff, mean[0,k]+diff],[mean[1,k]-diff, mean[1,k]+diff],[mean[2,k]-diff, mean[2,k]+diff]])
+        x = np.linspace(lims[0,0], lims[0,1], num=nb_pts) 
+        y = np.linspace(lims[1,0], lims[1,1], num=nb_pts)
+        z = np.linspace(lims[2,0], lims[2,1], num=nb_pts)
+
+        xx, yy, zz = np.meshgrid(x, y, z, indexing='ij')
+
+        xyz = np.zeros((nb_pts,nb_pts, nb_pts,3))
+        xyz[:,:,:,0] = xx
+        xyz[:,:,:,1] = yy
+        xyz[:,:,:,2] = zz
+    
         
         
         start = time.time()
         
-        x_center = mean[0,k]
-        y_center = mean[1,k]
-        z_center = mean[2,k]
-        
-        x = np.linspace(stats.norm.ppf(0.01), stats.norm.ppf(0.99), nb_pts) + x_center
-        y = np.linspace(stats.norm.ppf(0.01), stats.norm.ppf(0.99), nb_pts) + y_center
-        z = np.linspace(stats.norm.ppf(0.01), stats.norm.ppf(0.99), nb_pts) + z_center
-        for idx_x in range (nb_pts): # x, y, z
-            for idx_y in range (nb_pts): # x, y, z
-                for idx_z in range (nb_pts): # x, y, z   
-                    p[idx_x, idx_y, idx_z] = get_joint_rv(x[idx_x], y[idx_y], z[idx_z], rv[k])
+        p=rv[k].pdf(xyz)
 
         stop = time.time()
         elapsed = stop - start
         print("Joint probabilities obtained after: " + str(int(elapsed)) + " seconds.")
 
-        idx = p > threshold
+        threshold = 0
+        while True:
+            idx = p > threshold
+            nzc = np.count_nonzero(idx)
+            threshold += th_increase
+#             print("th={:.3f} --> ## ={:.3f}".format(threshold, nzc))
+            if nzc < nzc_max:
+                break
 
         # Creating plot
-        xx, yy, zz = np.meshgrid(x, y, z)
         ax.scatter3D(xx[idx], yy[idx], zz[idx], c=p[idx], cmap=cmappers[k], vmin=0, vmax=10, marker='.')
-       
-    ax.set_xlabel('y')
-    ax.set_ylabel('-x')
+    
+    cam_colors = ['g', 'b', 'r']
+    # Plot Cameras    
+    for k in range(3):
+        ax.scatter3D(r_cam_poses[k,0], r_cam_poses[k,1], r_cam_poses[k,2], vmin=0, vmax=10, marker='p', color=cam_colors[k])
+    
+    # Plot Origin
+    ax.scatter3D(0, 0, 0, vmin=0, vmax=10, marker='p', color='k')
+    
+    
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
     ax.set_zlabel('z') 
     
-    max_x = np.mean(mean[0,:])+2
-    max_y = np.mean(mean[1,:])+2
-    max_z = np.mean(mean[2,:])+2
-    min_x = np.mean(mean[0,:])-2
-    min_y = np.mean(mean[1,:])-2
-    min_z = np.mean(mean[2,:])-2
     
-    ax.set_xlim([-1, 1.5])
-    ax.set_ylim([-1, 1.5])
-    ax.set_zlim([-1, 1.5])
+    ax.set_xlim([lims[0,0], lims[0,1]])
+    ax.set_ylim([lims[1,0], lims[1,1]])
+    ax.set_zlim([lims[2,0], lims[2,1]])
     
-    ax.view_init(0, 180) # Top View
-    
+    if plane == 'xz':
+        ax.view_init(0, 90) 
+    if plane == 'xy':
+        ax.view_init(-90, 90)
+    if plane == 'yz':
+        ax.view_init(0, 0) 
+    if plane == 'im':
+        ax.view_init(-36, 12)     
+        plt.savefig('Example.png')
 
     plt.show()  
