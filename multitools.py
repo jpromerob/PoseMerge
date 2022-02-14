@@ -317,9 +317,12 @@ def predict_pose(nb_pts, rv, mean, w_pose):
     
         
     diff = 1.0
+    x_0 = np.mean(mean[0,:])
+    y_0 = np.mean(mean[1,:])
+    z_0 = np.mean(mean[2,:])
 #     lims = np.array([[-1, 3],[-1, 3],[-1,3]])
 #     lims = np.array([[-1.5, 1.5],[-1.5, 1.5],[-1.5, 1.5]])
-    lims = np.array([[mean[0]-diff, mean[0]+diff],[mean[1]-diff, mean[1]+diff],[mean[2]-diff, mean[2]+diff]])
+    lims = np.array([[x_0-diff, x_0+diff],[y_0-diff, y_0+diff],[z_0-diff, z_0+diff]])
     nzc_max = 100 
     th_increase = 0.001
     count = 0
@@ -457,9 +460,9 @@ def visualize_all_cigars(nb_pts, rv, mean, plane, r_cam_poses):
     ax.set_zlabel('z') 
     
     
-    ax.set_xlim([lims[0,0], lims[0,1]])
-    ax.set_ylim([lims[1,0], lims[1,1]])
-    ax.set_zlim([lims[2,0], lims[2,1]])
+    ax.set_xlim([-0.5, 1.5])
+    ax.set_ylim([-0.5, 1.5])
+    ax.set_zlim([-1.5, 0.5])
     
     if plane == 'xz':
         ax.view_init(0, 90) 
