@@ -378,7 +378,7 @@ def predict_pose(nb_pts, rv, mean, w_pose):
             print("\033[1m" + "Error: {:.3f} [cm]\n\n".format(100*d)+ "\033[0m")
             break
     
-    return xx, yy, zz, p, idx, d
+    return xx, yy, zz, p, idx, prediction, d
   
 def visualize_all_cigars(nb_pts, rv, mean, plane, r_cam_poses):
     
@@ -454,15 +454,15 @@ def visualize_all_cigars(nb_pts, rv, mean, plane, r_cam_poses):
     # Plot Origin
     ax.scatter3D(0, 0, 0, vmin=0, vmax=10, marker='p', color='k')
     
-    
+
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z') 
     
     
-    ax.set_xlim([-0.5, 1.5])
-    ax.set_ylim([-0.5, 1.5])
-    ax.set_zlim([-1.5, 0.5])
+    ax.set_xlim([-1.5, 1.5])
+    ax.set_ylim([-1.0, 2.0])
+    ax.set_zlim([-0.5, 2.5])
     
     if plane == 'xz':
         ax.view_init(0, 90) 
@@ -471,7 +471,10 @@ def visualize_all_cigars(nb_pts, rv, mean, plane, r_cam_poses):
     if plane == 'yz':
         ax.view_init(0, 0) 
     if plane == 'im':
-        ax.view_init(-36, 12)     
-        plt.savefig('Example.png')
+        ax.set_xlim([-1, 0.5])
+        ax.set_ylim([-0.5, 1.0])
+        ax.set_zlim([0, 1.5])
+        ax.view_init(-30, 10)     
+        plt.savefig('Example.png', bbox_inches='tight',pad_inches = 0)
 
     plt.show()  
