@@ -347,6 +347,8 @@ def predict_pose(nb_pts, rv, mean, w_pose):
 
     #     p = np.cbrt(np.multiply(p1,np.multiply(p2,p3)))
         p = np.cbrt(p1*p2*p3)
+        # p = p/np.sum(p)
+        print(nb_pts)
 
 
         stop = datetime.datetime.now()
@@ -369,11 +371,13 @@ def predict_pose(nb_pts, rv, mean, w_pose):
         count+= 1     
         nzc_max = 20*nzc_max
         th_increase = 10*th_increase
-        lims = np.array([[x[imp[0]]-0.25, x[imp[0]]+0.1],[y[imp[1]]-0.25, y[imp[1]]+0.1],[z[imp[2]]-0.25, z[imp[2]]+0.1]])
+        delta = 0.05
+        lims = np.array([[x[imp[0]]-delta, x[imp[0]]+delta],[y[imp[1]]-delta, y[imp[1]]+delta],[z[imp[2]]-delta, z[imp[2]]+delta]])
         if count > 1:
             print("Joint probabilities obtained after: " + str(int(elapsed.microseconds/1000)) + " [ms].")
             print("Final Threshold : {:.3f}".format(threshold))
             print("Prediction: ({:.3f}, {:.3f}, {:.3f})".format(x[imp[0]], y[imp[1]], z[imp[2]]))
+            print("Probability: {:.3f}".format(np.argmax(p, axis=None)))
             d = get_euclidian_d(w_pose, prediction)
             print("\033[1m" + "Error: {:.3f} [cm]\n\n".format(100*d)+ "\033[0m")
             break
