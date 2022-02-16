@@ -348,7 +348,6 @@ def predict_pose(nb_pts, rv, mean, w_pose):
     #     p = np.cbrt(np.multiply(p1,np.multiply(p2,p3)))
         p = np.cbrt(p1*p2*p3)
         # p = p/np.sum(p)
-        print(nb_pts)
 
 
         stop = datetime.datetime.now()
