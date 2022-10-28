@@ -21,7 +21,6 @@ import math
 import datetime
 import os
 import random
-import cv2
 import pickle
 import struct ## new
 import zlib
