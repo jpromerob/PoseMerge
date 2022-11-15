@@ -2,13 +2,13 @@ clear; clc
 
 vl_ds = csvread('datasets/dataset_validation.csv');
 
-hl_array = [16];
+hl_array = 4:2:16;
 nb_nn = length(hl_array);
 
-px_e = [0];
+px_e = [0,4,8,12,16,20,24,32];
 nb_ds = length(px_e);
 
-cc_array = 1:1:1;
+cc_array = 1:1:20;
 nb_copies = length(cc_array);
 
 error = ones(nb_ds, nb_nn, nb_copies)*Inf;
